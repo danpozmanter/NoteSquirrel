@@ -68,6 +68,12 @@ impl AppFrame {
             {
                 self.editor.copy_to_clipboard();
             }
+
+            if i.consume_key(egui::Modifiers::CTRL, egui::Key::D)
+                || i.consume_key(egui::Modifiers::MAC_CMD, egui::Key::D)
+            {
+                self.show_delete_confirmation = true;
+            }
         });
     }
 

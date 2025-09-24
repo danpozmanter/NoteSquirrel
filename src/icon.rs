@@ -11,7 +11,7 @@ pub fn load_app_icon() -> Option<egui::IconData> {
                 });
             }
 
-    if let Ok(icon_bytes) = std::fs::read("icons/NoteSquirrelIcon.png")
+    if let Ok(icon_bytes) = std::fs::read("images/NoteSquirrelIcon.png")
         && let Ok(image) = image::load_from_memory(&icon_bytes) {
             let rgba = image.to_rgba8();
             let (width, height) = rgba.dimensions();

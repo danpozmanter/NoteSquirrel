@@ -5,11 +5,11 @@ use std::path::PathBuf;
 
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let master_path = PathBuf::from("icons/NoteSquirrelIcon.png");
+    let master_path = PathBuf::from("images/NoteSquirrelIcon.png");
 
     // Load master PNG
     let master = image::open(&master_path)
-        .expect("failed to open icons/NoteSquirrelIcon.png")
+        .expect("failed to open images/NoteSquirrelIcon.png")
         .into_rgba8();
 
     // ----------------------------------------------------------------
@@ -78,5 +78,5 @@ fn main() {
         println!("cargo:rustc-env=APP_ICON={}", runtime_icon_path.display());
     }
 
-    println!("cargo:rerun-if-changed=icons/NoteSquirrelIcon.png");
+    println!("cargo:rerun-if-changed=images/NoteSquirrelIcon.png");
 }
