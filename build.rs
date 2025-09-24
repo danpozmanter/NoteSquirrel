@@ -7,7 +7,6 @@ fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let master_path = PathBuf::from("images/NoteSquirrelIcon.png");
 
-    // Load master PNG
     let master = image::open(&master_path)
         .expect("failed to open images/NoteSquirrelIcon.png")
         .into_rgba8();
@@ -59,7 +58,7 @@ fn main() {
     }
 
     // ----------------------------------------------------------------
-    // Linux: PNGs + one default runtime icon
+    // Linux: Embed icon data directly into binary
     // ----------------------------------------------------------------
     {
         let sizes = [16, 32, 48, 128, 256];
@@ -70,12 +69,27 @@ fn main() {
             resized.save(out_dir.join(format!("icon-{}.png", size))).unwrap();
         }
 
-        // Save one standard PNG for runtime (256px)
-        let runtime_icon_path = out_dir.join("window-icon.png");
-        master.save(&runtime_icon_path).unwrap();
+        let embedded_icon_path = out_dir.join("embedded_icon.rs");
+        let mut embedded_file = File::create(&embedded_icon_path).unwrap();
+        use std::io::Write;
 
-        // Tell Cargo to pass this path to the app as an env var
-        println!("cargo:rustc-env=APP_ICON={}", runtime_icon_path.display());
+        writeln!(embedded_file, "// Auto-generated embedded icon data").unwrap();
+        writeln!(embedded_file, "pub const ICON_RGBA: &[u8] = &[").unwrap();
+
+        let (width, height) = master.dimensions();
+        let rgba_data = master.into_raw();
+        for (i, byte) in rgba_data.iter().enumerate() {
+            if i % 16 == 0 {
+                write!(embedded_file, "\n    ").unwrap();
+            }
+            write!(embedded_file, "0x{:02x}, ", byte).unwrap();
+        }
+
+        writeln!(embedded_file, "\n];").unwrap();
+        writeln!(embedded_file, "pub const ICON_WIDTH: u32 = {};", width).unwrap();
+        writeln!(embedded_file, "pub const ICON_HEIGHT: u32 = {};", height).unwrap();
+
+        println!("cargo:rustc-env=EMBEDDED_ICON_FILE={}", embedded_icon_path.display());
     }
 
     println!("cargo:rerun-if-changed=images/NoteSquirrelIcon.png");
