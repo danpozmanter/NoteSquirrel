@@ -170,12 +170,12 @@ impl NotesList {
                     let button_label = if is_dirty {
                         egui::RichText::new(note_name)
                             .color(egui::Color32::from_rgb(255, 150, 150))
-                            .font(egui::FontId::proportional(self.config.list_font_size))
+                            .font(self.config.get_list_font_id(self.config.list_font_size))
                             .strong()
                     } else {
                         egui::RichText::new(note_name)
                             .color(egui::Color32::WHITE)
-                            .font(egui::FontId::proportional(self.config.list_font_size))
+                            .font(self.config.get_list_font_id(self.config.list_font_size))
                             .strong()
                     };
 

@@ -3,7 +3,7 @@ use eframe::egui;
 use crate::notes_list::NotesList;
 use crate::editor::Editor;
 use crate::rendered_view::RenderedView;
-use crate::config::Config;
+use crate::config::{Config, ConfigLoadResult};
 
 #[allow(dead_code)]
 pub struct AppFrame {
@@ -12,21 +12,34 @@ pub struct AppFrame {
     pub rendered_view: RenderedView,
     pub show_delete_confirmation: bool,
     pub config: Config,
+    pub error_dialog_errors: Vec<String>,
+    pub show_error_dialog: bool,
 }
 
 impl AppFrame {
     pub fn new() -> Self {
-        let config = Config::load();
+        let ConfigLoadResult { config, errors } = Config::load();
         let mut app_frame = Self {
             notes_list: NotesList::new(&config),
             editor: Editor::new(&config),
             rendered_view: RenderedView::new(&config),
             show_delete_confirmation: false,
             config,
+            error_dialog_errors: errors,
+            show_error_dialog: false,
         };
 
         app_frame.load_notes();
         app_frame
+    }
+
+    pub fn setup_fonts_and_collect_errors(&mut self, ctx: &egui::Context) {
+        let (loaded_fonts, font_errors) = self.config.setup_fonts(ctx);
+        self.config.loaded_fonts = loaded_fonts;
+        self.error_dialog_errors.extend(font_errors);
+        if !self.error_dialog_errors.is_empty() {
+            self.show_error_dialog = true;
+        }
     }
 
     pub fn load_notes(&mut self) {
@@ -45,7 +58,9 @@ impl AppFrame {
 
     #[allow(dead_code)]
     pub fn save_config(&self) {
-        self.config.save();
+        if let Err(e) = self.config.save() {
+            eprintln!("Failed to save config: {}", e);
+        }
     }
 
     pub fn handle_global_shortcuts(&mut self, ctx: &egui::Context) {
@@ -95,6 +110,35 @@ impl AppFrame {
                         }
                         if ui.button("No").clicked() || ui.input(|i| i.key_pressed(egui::Key::N)) {
                             self.show_delete_confirmation = false;
+                        }
+                    });
+                });
+        }
+    }
+
+    pub fn render_error_dialog(&mut self, ctx: &egui::Context) {
+        if self.show_error_dialog {
+            egui::Window::new("Configuration Errors")
+                .collapsible(false)
+                .resizable(true)
+                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+                .show(ctx, |ui| {
+                    ui.label("The following errors occurred while loading the configuration:");
+                    ui.separator();
+
+                    egui::ScrollArea::vertical()
+                        .max_height(300.0)
+                        .show(ui, |ui| {
+                            for error in &self.error_dialog_errors {
+                                ui.label(format!("• {}", error));
+                            }
+                        });
+
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        if ui.button("OK").clicked() {
+                            self.show_error_dialog = false;
+                            self.error_dialog_errors.clear();
                         }
                     });
                 });
@@ -193,6 +237,7 @@ impl eframe::App for AppFrame {
         self.update_window_title(ctx);
         self.handle_global_shortcuts(ctx);
         self.render_delete_confirmation_dialog(ctx);
+        self.render_error_dialog(ctx);
         self.render_main_layout(ctx);
     }
 }

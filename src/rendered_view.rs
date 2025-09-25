@@ -1,5 +1,5 @@
 use eframe::egui;
-use egui::{Color32, RichText, FontId};
+use egui::{Color32, RichText};
 use pulldown_cmark::{Parser, Event, Tag, TagEnd, HeadingLevel, Options};
 
 use crate::config::Config;
@@ -51,7 +51,7 @@ impl RenderedView {
                         ui.label(
                             egui::RichText::new("Start typing to see your rendered notes (markdown)...")
                                 .color(egui::Color32::from_rgb(150, 150, 150))
-                                .font(egui::FontId::proportional(14.0)),
+                                .font(self.config.get_rendered_font_id(14.0)),
                         );
                         result = Some(Vec::new());
                     } else {
@@ -166,7 +166,7 @@ impl RenderedView {
 
         ui.add_space(8.0);
         ui.label(RichText::new(&heading_text)
-            .font(FontId::proportional(font_size))
+            .font(self.config.get_rendered_font_id(font_size))
             .strong()
             .color(color));
         ui.add_space(4.0);
@@ -218,7 +218,7 @@ impl RenderedView {
                     }
                     Event::Text(text) => {
                         let mut rich_text = RichText::new(text.as_ref())
-                            .font(FontId::proportional(self.config.rendered_font_size));
+                            .font(self.config.get_rendered_font_id(self.config.rendered_font_size));
 
                         if in_strikethrough {
                             rich_text = rich_text.strikethrough().color(self.config.markdown_styles.strikethrough.to_color32());
@@ -301,7 +301,7 @@ impl RenderedView {
                 };
                 ui.label(RichText::new(bullet)
                     .color(self.config.markdown_styles.list_bullet.to_color32())
-                    .font(self.config.markdown_styles.list_bullet.to_font_id()));
+                    .font(self.config.get_rendered_font_id(self.config.markdown_styles.list_bullet.font_size)));
             }
 
             let mut in_strong = false;
@@ -348,7 +348,7 @@ impl RenderedView {
                     Event::End(TagEnd::Strikethrough) => { in_strikethrough = false; current_i += 1; }
                     Event::Text(text) => {
                         let mut rich_text = RichText::new(text.as_ref())
-                            .font(FontId::proportional(self.config.rendered_font_size));
+                            .font(self.config.get_rendered_font_id(self.config.rendered_font_size));
 
                         if (is_task_item && is_checked) || in_strikethrough {
                             rich_text = rich_text.strikethrough().color(self.config.markdown_styles.strikethrough.to_color32());
@@ -419,7 +419,7 @@ impl RenderedView {
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
             ui.label(RichText::new(&code_text)
                 .monospace()
-                .font(FontId::monospace(self.config.markdown_styles.code_block.font_size))
+                .font(self.config.get_rendered_font_id(self.config.markdown_styles.code_block.font_size))
                 .background_color(Color32::from_rgb(
                     self.config.markdown_styles.code_block_background[0],
                     self.config.markdown_styles.code_block_background[1],
@@ -437,7 +437,7 @@ impl RenderedView {
 
         ui.add_space(4.0);
         ui.horizontal(|ui| {
-            ui.label(RichText::new("▎").color(Color32::from_rgb(120, 120, 120)).font(FontId::proportional(20.0)));
+            ui.label(RichText::new("▎").color(Color32::from_rgb(120, 120, 120)).font(self.config.get_rendered_font_id(20.0)));
             ui.vertical(|ui| {
                 while i < events.len() {
                     match &events[i] {

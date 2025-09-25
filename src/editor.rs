@@ -1,5 +1,4 @@
 use eframe::egui;
-use egui::{FontId};
 use arboard::Clipboard;
 
 use crate::notes_list::NotesList;
@@ -70,7 +69,7 @@ impl Editor {
                     changed = ui.add_sized(
                         ui.available_size(),
                         egui::TextEdit::multiline(&mut self.markdown_text)
-                            .font(FontId::monospace(self.config.editor_font_size))
+                            .font(self.config.get_editor_font_id(self.config.editor_font_size))
                             .desired_width(f32::INFINITY),
                     )
                     .changed();

@@ -28,6 +28,10 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Note Squirrel",
         options,
-        Box::new(|_cc| Ok(Box::new(AppFrame::default()))),
+        Box::new(|cc| {
+            let mut app = AppFrame::default();
+            app.setup_fonts_and_collect_errors(&cc.egui_ctx);
+            Ok(Box::new(app))
+        }),
     )
 }
