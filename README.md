@@ -6,13 +6,14 @@ A fast, local note-taking application built with Rust and egui. NoteSquirrel pro
 
 ## Features
 
-- Clean, distraction-free interface with sidebar note list and split editor/preview
-- Live markdown rendering with syntax highlighting
-- Interactive checkboxes in preview that update the source
-- Search functionality to quickly find notes
-- Automatic saving and dirty state tracking
+- Clean, distraction-free interface with sidebar note list and split editor & live markdown preview
+- Simple editor with syntax highlighting
+- Interactive checkboxes in markdown preview
+- Searchbar to quickly find notes
+- Acts like an editor (Ctrl+S to save, not auto-saving)
 - Cross-platform support (Linux, macOS, Windows)
 - Configurable fonts, colors, and styling
+- Low resource usage and snappy performance
 
 ## Keybindings
 
