@@ -290,7 +290,7 @@ impl RenderedView {
             if is_task_item {
                 let mut checkbox_checked = is_checked;
                 if ui.checkbox(&mut checkbox_checked, "").clicked() && checkbox_checked != is_checked {
-                    let line_number = self.find_task_line_number(start, context);
+                    let line_number = self.find_task_line_number(events, start);
                     checkbox_toggles.push(line_number);
                 }
             } else {
@@ -454,13 +454,52 @@ impl RenderedView {
         i + 1
     }
 
-    fn find_task_line_number(&self, _event_index: usize, _context: &MarkdownContext) -> usize {
-        let lines: Vec<&str> = self.current_markdown_text.lines().collect();
-        for (i, line) in lines.iter().enumerate() {
+    fn find_task_line_number(&self, events: &[Event], event_index: usize) -> usize {
+        let mut task_ordinal = 0usize;
+        let mut i = 0usize;
+
+        while i <= event_index && i < events.len() {
+            match &events[i] {
+                Event::Start(Tag::Item) => {
+                    let mut j = i + 1;
+                    let mut is_task = false;
+                    while j < events.len() {
+                        match &events[j] {
+                            Event::TaskListMarker(_) => {
+                                is_task = true;
+                                break;
+                            }
+                            Event::End(TagEnd::Item) => break,
+                            _ => {}
+                        }
+                        j += 1;
+                    }
+                    if is_task {
+                        task_ordinal += 1;
+                        if i == event_index {
+                            break;
+                        }
+                    }
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+
+        if task_ordinal == 0 {
+            return 0;
+        }
+
+        let mut count = 0usize;
+        for (lineno, line) in self.current_markdown_text.lines().enumerate() {
             if line.contains("- [ ]") || line.contains("- [x]") {
-                return i;
+                count += 1;
+                if count == task_ordinal {
+                    return lineno;
+                }
             }
         }
         0
     }
+
 }
