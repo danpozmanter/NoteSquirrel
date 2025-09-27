@@ -9,6 +9,7 @@ pub struct Editor {
     markdown_text: String,
     clipboard: Option<Clipboard>,
     config: Config,
+    should_focus: bool,
 }
 
 impl Editor {
@@ -17,6 +18,7 @@ impl Editor {
             markdown_text: String::new(),
             clipboard: Clipboard::new().ok(),
             config: config.clone(),
+            should_focus: true,
         }
     }
 
@@ -84,25 +86,37 @@ impl Editor {
         let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
             let mut job = egui::text::LayoutJob::default();
 
-            for line in string.lines() {
+            let lines: Vec<&str> = string.lines().collect();
+            for (i, line) in lines.iter().enumerate() {
                 Self::highlight_markdown_line_static(line, &mut job, font_id.clone(), editor_font_size);
-                job.append("\n", 0.0, egui::TextFormat {
-                    font_id: font_id.clone(),
-                    color: Color32::from_rgb(200, 200, 200),
-                    ..Default::default()
-                });
+                if i < lines.len() - 1 {
+                    job.append("\n", 0.0, egui::TextFormat {
+                        font_id: font_id.clone(),
+                        color: Color32::from_rgb(200, 200, 200),
+                        ..Default::default()
+                    });
+                }
             }
 
             ui.fonts(|f| f.layout_job(job))
         };
 
-        ui.add_sized(
+        let response = ui.add_sized(
             ui.available_size(),
             TextEdit::multiline(&mut self.markdown_text)
                 .font(font_id.clone())
                 .desired_width(f32::INFINITY)
                 .layouter(&mut layouter),
-        ).changed()
+        );
+
+        if self.should_focus {
+            response.request_focus();
+            self.should_focus = false;
+        } else if !response.has_focus() {
+            response.request_focus();
+        }
+
+        response.changed() && response.has_focus()
     }
 
     fn highlight_markdown_line_static(line: &str, job: &mut egui::text::LayoutJob, font_id: egui::FontId, font_size: f32) {
