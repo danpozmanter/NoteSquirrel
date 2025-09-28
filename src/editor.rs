@@ -112,8 +112,6 @@ impl Editor {
         if self.should_focus {
             response.request_focus();
             self.should_focus = false;
-        } else if !response.has_focus() {
-            response.request_focus();
         }
 
         response.changed() && response.has_focus()
