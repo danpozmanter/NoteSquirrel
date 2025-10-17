@@ -260,8 +260,8 @@ impl Config {
             let system_paths = [
                 PathBuf::from("/usr/share/fonts/"),
                 PathBuf::from("/usr/local/share/fonts/"),
-                PathBuf::from(std::env::home_dir().unwrap_or_default()).join(".fonts/"),
-                PathBuf::from(std::env::home_dir().unwrap_or_default()).join(".local/share/fonts/"),
+                std::env::home_dir().unwrap_or_default().join(".fonts/"),
+                std::env::home_dir().unwrap_or_default().join(".local/share/fonts/"),
             ];
             for base_path in &system_paths {
                 for variation in &font_variations {
@@ -351,13 +351,11 @@ impl Config {
                 }
             }
         } else {
-            if let Some(parent) = config_path.parent() {
-                if !parent.exists() {
-                    if let Err(e) = fs::create_dir_all(parent) {
-                        errors.push(format!("Failed to create config directory '{}': {}", parent.display(), e));
-                    }
+            if let Some(parent) = config_path.parent()
+                && !parent.exists()
+                && let Err(e) = fs::create_dir_all(parent) {
+                    errors.push(format!("Failed to create config directory '{}': {}", parent.display(), e));
                 }
-            }
             let default_config = Self::default();
             if let Err(e) = default_config.save() {
                 errors.push(format!("Failed to save default config: {}", e));

@@ -459,29 +459,26 @@ impl RenderedView {
         let mut i = 0usize;
 
         while i <= event_index && i < events.len() {
-            match &events[i] {
-                Event::Start(Tag::Item) => {
-                    let mut j = i + 1;
-                    let mut is_task = false;
-                    while j < events.len() {
-                        match &events[j] {
-                            Event::TaskListMarker(_) => {
-                                is_task = true;
-                                break;
-                            }
-                            Event::End(TagEnd::Item) => break,
-                            _ => {}
-                        }
-                        j += 1;
-                    }
-                    if is_task {
-                        task_ordinal += 1;
-                        if i == event_index {
+            if let Event::Start(Tag::Item) = &events[i] {
+                let mut j = i + 1;
+                let mut is_task = false;
+                while j < events.len() {
+                    match &events[j] {
+                        Event::TaskListMarker(_) => {
+                            is_task = true;
                             break;
                         }
+                        Event::End(TagEnd::Item) => break,
+                        _ => {}
+                    }
+                    j += 1;
+                }
+                if is_task {
+                    task_ordinal += 1;
+                    if i == event_index {
+                        break;
                     }
                 }
-                _ => {}
             }
             i += 1;
         }

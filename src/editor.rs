@@ -106,6 +106,7 @@ impl Editor {
             TextEdit::multiline(&mut self.markdown_text)
                 .font(font_id.clone())
                 .desired_width(f32::INFINITY)
+                .lock_focus(true)
                 .layouter(&mut layouter),
         );
 
@@ -120,7 +121,6 @@ impl Editor {
     fn highlight_markdown_line_static(line: &str, job: &mut egui::text::LayoutJob, font_id: egui::FontId, font_size: f32) {
         let trimmed = line.trim_start();
 
-        // Handle headers
         if trimmed.starts_with("######") {
             Self::add_header_text_static(line, 6, Color32::from_rgb(255, 255, 180), 14.0, job, font_id.clone(), font_size);
         } else if trimmed.starts_with("#####") {
@@ -133,43 +133,28 @@ impl Editor {
             Self::add_header_text_static(line, 2, Color32::from_rgb(220, 255, 180), 24.0, job, font_id.clone(), font_size);
         } else if trimmed.starts_with("#") {
             Self::add_header_text_static(line, 1, Color32::from_rgb(255, 220, 100), 28.0, job, font_id.clone(), font_size);
-        }
-        // Handle code blocks
-        else if trimmed.starts_with("```") {
+        } else if trimmed.starts_with("```") {
             job.append(line, 0.0, egui::TextFormat {
                 font_id: egui::FontId::monospace(font_size),
                 color: Color32::from_rgb(150, 120, 200),
                 background: Color32::from_rgb(40, 40, 50),
                 ..Default::default()
             });
-        }
-        // Handle quotes
-        else if trimmed.starts_with(">") {
+        } else if trimmed.starts_with(">") {
             job.append(line, 0.0, egui::TextFormat {
                 font_id: font_id.clone(),
                 color: Color32::from_rgb(160, 160, 160),
                 italics: true,
                 ..Default::default()
             });
-        }
-        // Handle lists - simple version
-        else if trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ") {
+        } else if trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ")
+            || (trimmed.chars().next().is_some_and(|c| c.is_ascii_digit()) && trimmed.contains(". ")) {
             job.append(line, 0.0, egui::TextFormat {
                 font_id,
                 color: Color32::from_rgb(60, 120, 200),
                 ..Default::default()
             });
-        }
-        // Handle numbered lists
-        else if trimmed.chars().next().map_or(false, |c| c.is_ascii_digit()) && trimmed.contains(". ") {
-            job.append(line, 0.0, egui::TextFormat {
-                font_id,
-                color: Color32::from_rgb(60, 120, 200),
-                ..Default::default()
-            });
-        }
-        // Handle regular text
-        else {
+        } else {
             job.append(line, 0.0, egui::TextFormat {
                 font_id,
                 color: Color32::from_rgb(200, 200, 200),
@@ -183,7 +168,6 @@ impl Editor {
         let prefix_with_space = format!("{} ", prefix);
 
         if let Some(content_start) = line.find(&prefix_with_space) {
-            // Add text before header
             if content_start > 0 {
                 job.append(&line[..content_start], 0.0, egui::TextFormat {
                     font_id: font_id.clone(),
@@ -192,21 +176,18 @@ impl Editor {
                 });
             }
 
-            // Add header prefix with distinct color
             job.append(&prefix, 0.0, egui::TextFormat {
                 font_id: font_id.clone(),
                 color: Color32::from_rgb(100, 100, 100),
                 ..Default::default()
             });
 
-            // Add space
             job.append(" ", 0.0, egui::TextFormat {
                 font_id: font_id.clone(),
                 color: Color32::from_rgb(200, 200, 200),
                 ..Default::default()
             });
 
-            // Add header content
             let content = &line[content_start + prefix_with_space.len()..];
             job.append(content, 0.0, egui::TextFormat {
                 font_id: font_id.clone(),
