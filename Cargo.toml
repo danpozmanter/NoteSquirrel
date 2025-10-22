@@ -1,6 +1,6 @@
 [package]
 name = "NoteSquirrel"
-version = "0.0.0"
+version = "0.1.0"
 edition = "2024"
 build = "build.rs"
 
@@ -15,6 +15,7 @@ webbrowser = "1.0"
 image = "0.25"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
+regex = "1.10"
 
 [build-dependencies]
 image = "0.25"

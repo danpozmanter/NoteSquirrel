@@ -4,6 +4,7 @@ use crate::notes_list::NotesList;
 use crate::editor::Editor;
 use crate::rendered_view::RenderedView;
 use crate::config::{Config, ConfigLoadResult};
+use crate::find_replace::{FindReplace, FindReplaceAction};
 
 #[allow(dead_code)]
 pub struct AppFrame {
@@ -14,6 +15,10 @@ pub struct AppFrame {
     pub config: Config,
     pub error_dialog_errors: Vec<String>,
     pub show_error_dialog: bool,
+    pub find_replace: FindReplace,
+    pub show_unsaved_dialog: bool,
+    pub pending_close: bool,
+    pub force_close: bool,
 }
 
 impl AppFrame {
@@ -27,6 +32,10 @@ impl AppFrame {
             config,
             error_dialog_errors: errors,
             show_error_dialog: false,
+            find_replace: FindReplace::new(),
+            show_unsaved_dialog: false,
+            pending_close: false,
+            force_close: false,
         };
 
         app_frame.load_notes();
@@ -89,6 +98,52 @@ impl AppFrame {
             {
                 self.show_delete_confirmation = true;
             }
+
+            if i.consume_key(egui::Modifiers::CTRL, egui::Key::F)
+                || i.consume_key(egui::Modifiers::MAC_CMD, egui::Key::F)
+            {
+                self.find_replace.toggle_dialog();
+            }
+
+            if (i.consume_key(egui::Modifiers::CTRL, egui::Key::Z)
+                || i.consume_key(egui::Modifiers::MAC_CMD, egui::Key::Z))
+                && self.editor.undo()
+            {
+                self.notes_list.save_current_content(self.editor.get_text());
+            }
+
+            if (i.consume_key(egui::Modifiers::CTRL, egui::Key::Y)
+                || i.consume_key(egui::Modifiers::MAC_CMD, egui::Key::Y))
+                && self.editor.redo()
+            {
+                self.notes_list.save_current_content(self.editor.get_text());
+            }
+
+            if i.consume_key(egui::Modifiers::NONE, egui::Key::F3)
+                && self.find_replace.show_dialog
+            {
+                self.find_replace.next_match();
+            }
+
+            if i.consume_key(egui::Modifiers::SHIFT, egui::Key::F3)
+                && self.find_replace.show_dialog
+            {
+                self.find_replace.previous_match();
+            }
+
+            if (i.consume_key(egui::Modifiers::CTRL, egui::Key::Comma)
+                || i.consume_key(egui::Modifiers::MAC_CMD, egui::Key::Comma))
+                && self.editor.insert_list_entry(None)
+            {
+                self.notes_list.save_current_content(self.editor.get_text());
+            }
+
+            if (i.consume_key(egui::Modifiers::CTRL, egui::Key::Period)
+                || i.consume_key(egui::Modifiers::MAC_CMD, egui::Key::Period))
+                && self.editor.insert_checkbox_entry(None)
+            {
+                self.notes_list.save_current_content(self.editor.get_text());
+            }
         });
     }
 
@@ -143,6 +198,58 @@ impl AppFrame {
                     });
                 });
         }
+    }
+
+    pub fn handle_find_replace(&mut self, ctx: &egui::Context) {
+        let action = self.find_replace.render(ctx);
+
+        match action {
+            FindReplaceAction::UpdateMatches => {
+                self.find_replace.update_matches(self.editor.get_text());
+                self.update_editor_matches();
+            }
+            FindReplaceAction::NextMatch => {
+                self.find_replace.next_match();
+                self.update_editor_matches();
+            }
+            FindReplaceAction::PreviousMatch => {
+                self.find_replace.previous_match();
+                self.update_editor_matches();
+            }
+            FindReplaceAction::ReplaceCurrent => {
+                let mut text = self.editor.get_text().to_string();
+                if self.find_replace.replace_current(&mut text) {
+                    self.editor.set_text_with_undo(&text);
+                    self.notes_list.save_current_content(&text);
+                    self.find_replace.update_matches(&text);
+                    self.update_editor_matches();
+                }
+            }
+            FindReplaceAction::ReplaceAll => {
+                let mut text = self.editor.get_text().to_string();
+                let count = self.find_replace.replace_all(&mut text);
+                if count > 0 {
+                    self.editor.set_text_with_undo(&text);
+                    self.notes_list.save_current_content(&text);
+                    self.find_replace.update_matches(&text);
+                    self.update_editor_matches();
+                }
+            }
+            FindReplaceAction::None => {}
+        }
+
+        // Update matches if dialog is shown
+        if self.find_replace.show_dialog {
+            self.update_editor_matches();
+        } else {
+            self.editor.clear_matches();
+        }
+    }
+
+    fn update_editor_matches(&mut self) {
+        let ranges = self.find_replace.get_match_ranges();
+        let current = self.find_replace.current_match_index;
+        self.editor.set_match_ranges(ranges, current);
     }
 
     pub fn render_main_layout(&mut self, ctx: &egui::Context) {
@@ -224,6 +331,62 @@ impl AppFrame {
             self.editor.set_text(self.notes_list.get_current_content());
         }
     }
+
+    pub fn render_unsaved_changes_dialog(&mut self, ctx: &egui::Context) {
+        if self.show_unsaved_dialog {
+            egui::Window::new("Unsaved Changes")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+                .show(ctx, |ui| {
+                    ui.label("You have unsaved information");
+                    ui.separator();
+
+                    ui.horizontal(|ui| {
+                        let mut exit_text = egui::text::LayoutJob::default();
+                        exit_text.append("E", 0.0, egui::TextFormat {
+                            underline: egui::Stroke::new(1.0, ui.style().visuals.text_color()),
+                            ..Default::default()
+                        });
+                        exit_text.append("xit", 0.0, egui::TextFormat::default());
+
+                        if ui.button(exit_text).clicked() || ui.input(|i| i.key_pressed(egui::Key::E) && i.modifiers.alt) {
+                            self.show_unsaved_dialog = false;
+                            self.force_close = true;
+                        }
+
+                        let mut cancel_text = egui::text::LayoutJob::default();
+                        cancel_text.append("C", 0.0, egui::TextFormat {
+                            underline: egui::Stroke::new(1.0, ui.style().visuals.text_color()),
+                            ..Default::default()
+                        });
+                        cancel_text.append("ancel", 0.0, egui::TextFormat::default());
+
+                        if ui.button(cancel_text).clicked()
+                            || ui.input(|i| i.key_pressed(egui::Key::C) && i.modifiers.alt)
+                            || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                            self.show_unsaved_dialog = false;
+                            self.pending_close = false;
+                        }
+
+                        let mut save_text = egui::text::LayoutJob::default();
+                        save_text.append("S", 0.0, egui::TextFormat {
+                            underline: egui::Stroke::new(1.0, ui.style().visuals.text_color()),
+                            ..Default::default()
+                        });
+                        save_text.append("ave All", 0.0, egui::TextFormat::default());
+
+                        if ui.button(save_text).clicked() || ui.input(|i| i.key_pressed(egui::Key::S) && i.modifiers.alt) {
+                            self.notes_list.save_all_notes();
+                            self.show_unsaved_dialog = false;
+                            if self.pending_close {
+                                self.force_close = true;
+                            }
+                        }
+                    });
+                });
+        }
+    }
 }
 
 impl Default for AppFrame {
@@ -234,10 +397,26 @@ impl Default for AppFrame {
 
 impl eframe::App for AppFrame {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if self.force_close {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            return;
+        }
+
+        if ctx.input(|i| i.viewport().close_requested())
+            && !self.show_unsaved_dialog
+            && self.notes_list.has_any_dirty_notes()
+        {
+            self.show_unsaved_dialog = true;
+            self.pending_close = true;
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+        }
+
         self.update_window_title(ctx);
         self.handle_global_shortcuts(ctx);
         self.render_delete_confirmation_dialog(ctx);
         self.render_error_dialog(ctx);
+        self.render_unsaved_changes_dialog(ctx);
+        self.handle_find_replace(ctx);
         self.render_main_layout(ctx);
     }
 }

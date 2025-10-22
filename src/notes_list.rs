@@ -58,6 +58,27 @@ impl NotesList {
         self.is_dirty.get(self.current_note_index).copied().unwrap_or(false)
     }
 
+    pub fn has_any_dirty_notes(&self) -> bool {
+        self.is_dirty.iter().any(|&dirty| dirty)
+    }
+
+    pub fn save_all_notes(&mut self) -> bool {
+        let mut all_saved = true;
+        for i in 0..self.notes_list.len() {
+            if self.is_dirty.get(i).copied().unwrap_or(false) {
+                let note_name = &self.notes_list[i].clone();
+                let content = &self.current_content[i].clone();
+                if self.file_manager.write_note_content(note_name, content) {
+                    self.original_content[i] = content.clone();
+                    self.is_dirty[i] = false;
+                } else {
+                    all_saved = false;
+                }
+            }
+        }
+        all_saved
+    }
+
     pub fn save_current_note(&mut self, note_name: &str, content: &str) -> bool {
         if self.file_manager.write_note_content(note_name, content) {
             if self.current_note_index < self.original_content.len() {

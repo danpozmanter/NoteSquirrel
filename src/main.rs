@@ -10,6 +10,7 @@ mod notes_list;
 mod editor;
 mod rendered_view;
 mod config;
+mod find_replace;
 
 fn main() -> Result<(), eframe::Error> {
     let mut viewport = egui::ViewportBuilder::default()

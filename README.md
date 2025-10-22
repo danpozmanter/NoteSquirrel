@@ -7,22 +7,49 @@ A fast, local note-taking application built with Rust and egui. NoteSquirrel pro
 ## Features
 
 - Clean, distraction-free interface with sidebar note list and split editor & live markdown preview
-- Simple editor with syntax highlighting
+- Markdown editor with syntax highlighting
 - Interactive checkboxes in markdown preview
+- Find and replace with regex and case-sensitive search support
+- Match highlighting in editor
+- Undo/redo support
+- Quick list and checkbox insertion with automatic indentation
 - Searchbar to quickly find notes
+- Unsaved changes warning on exit
 - Acts like an editor (Ctrl+S to save, not auto-saving)
 - Cross-platform support (Linux, macOS, Windows)
 - Configurable fonts, colors, and styling
 - Low resource usage and snappy performance
 
-## Keybindings
+## Keyboard Shortcuts
 
+### File Operations
 - **Ctrl+S** / **Cmd+S**: Save current note
 - **Ctrl+N** / **Cmd+N**: Create new note
 - **Ctrl+C** / **Cmd+C**: Copy note content to clipboard (when not focused on editor)
 - **Ctrl+D** / **Cmd+D**: Delete current note (with confirmation)
-- **Double-click**: Rename note in the list
+
+### Editing
+- **Ctrl+Z** / **Cmd+Z**: Undo
+- **Ctrl+Y** / **Cmd+Y**: Redo
+- **Ctrl+,** / **Cmd+,**: Insert list item with proper indentation
+- **Ctrl+.** / **Cmd+.**: Insert checkbox item with proper indentation
+
+### Find & Replace
+- **Ctrl+F** / **Cmd+F**: Open find/replace dialog
+- **F3**: Next match
+- **Shift+F3**: Previous match
+- **Alt+R**: Replace current match (when find dialog is open)
+- **Alt+A**: Replace all matches (when find dialog is open)
+- **Escape**: Close find dialog
+
+### Dialog Shortcuts
 - **Y/N**: Confirm/cancel delete in confirmation dialog
+- **Alt+E**: Exit without saving (unsaved changes dialog)
+- **Alt+C** / **Escape**: Cancel (unsaved changes dialog)
+- **Alt+S**: Save all notes (unsaved changes dialog)
+
+### Other
+- **Double-click**: Rename note in the list
 
 ## Configuration
 
