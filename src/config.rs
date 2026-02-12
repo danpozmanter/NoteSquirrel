@@ -37,6 +37,8 @@ pub struct Config {
     pub list_font_family: String,
     pub rendered_font_family: String,
     pub markdown_styles: MarkdownStyles,
+    #[serde(default)]
+    pub last_open_note: Option<String>,
     #[serde(skip)]
     pub loaded_fonts: LoadedFonts,
 }
@@ -84,6 +86,7 @@ impl Default for Config {
                 code_block_background: [40, 40, 50],
                 list_bullet: MarkdownStyle { font_size: 14.0, color: [60, 120, 200] },
             },
+            last_open_note: None,
             loaded_fonts: LoadedFonts::default(),
         }
     }

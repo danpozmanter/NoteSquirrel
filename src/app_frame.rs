@@ -53,6 +53,10 @@ impl AppFrame {
 
     pub fn load_notes(&mut self) {
         self.notes_list.load_notes();
+        if let Some(ref name) = self.config.last_open_note
+            && let Some(index) = self.notes_list.find_note_index(name) {
+                self.notes_list.switch_to_note(index);
+            }
         self.editor.load_notes(&self.notes_list);
     }
 
@@ -65,7 +69,6 @@ impl AppFrame {
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(title));
     }
 
-    #[allow(dead_code)]
     pub fn save_config(&self) {
         if let Err(e) = self.config.save() {
             eprintln!("Failed to save config: {}", e);
@@ -329,6 +332,8 @@ impl AppFrame {
         self.notes_list.save_current_content(self.editor.get_text());
         if self.notes_list.switch_to_note(index) {
             self.editor.set_text(self.notes_list.get_current_content());
+            self.config.last_open_note = Some(self.notes_list.get_current_note_name().to_string());
+            self.save_config();
         }
     }
 
@@ -398,6 +403,8 @@ impl Default for AppFrame {
 impl eframe::App for AppFrame {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if self.force_close {
+            self.config.last_open_note = Some(self.notes_list.get_current_note_name().to_string());
+            self.save_config();
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             return;
         }

@@ -121,6 +121,10 @@ impl NotesList {
         }
     }
 
+    pub fn find_note_index(&self, name: &str) -> Option<usize> {
+        self.notes_list.iter().position(|n| n == name)
+    }
+
     pub fn switch_to_note(&mut self, index: usize) -> bool {
         if index < self.notes_list.len() {
             self.current_note_index = index;
