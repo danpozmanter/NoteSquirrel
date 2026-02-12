@@ -17,6 +17,10 @@ pub struct Editor {
     cursor_override: Option<egui::text::CCursorRange>,
     current_cursor_pos: Option<usize>,
     text_edit_id: Option<egui::Id>,
+    cached_layout_text: String,
+    cached_layout_matches: Vec<(usize, usize)>,
+    cached_layout_current_match: Option<usize>,
+    cached_layout_job: Option<egui::text::LayoutJob>,
 }
 
 impl Editor {
@@ -33,6 +37,10 @@ impl Editor {
             cursor_override: None,
             current_cursor_pos: None,
             text_edit_id: None,
+            cached_layout_text: String::new(),
+            cached_layout_matches: Vec::new(),
+            cached_layout_current_match: None,
+            cached_layout_job: None,
         }
     }
 
@@ -169,13 +177,19 @@ impl Editor {
     }
 
     pub fn set_match_ranges(&mut self, ranges: Vec<(usize, usize)>, current: Option<usize>) {
-        self.match_ranges = ranges;
-        self.current_match = current;
+        if self.match_ranges != ranges || self.current_match != current {
+            self.match_ranges = ranges;
+            self.current_match = current;
+            self.cached_layout_job = None;
+        }
     }
 
     pub fn clear_matches(&mut self) {
-        self.match_ranges.clear();
-        self.current_match = None;
+        if !self.match_ranges.is_empty() || self.current_match.is_some() {
+            self.match_ranges.clear();
+            self.current_match = None;
+            self.cached_layout_job = None;
+        }
     }
 
     pub fn toggle_checkbox_at_line(&mut self, line_index: usize) {
@@ -215,31 +229,54 @@ impl Editor {
         changed
     }
 
+    fn build_layout_job(text: &str, match_ranges: &[(usize, usize)], current_match: Option<usize>, font_id: &egui::FontId, editor_font_size: f32) -> egui::text::LayoutJob {
+        let mut job = egui::text::LayoutJob::default();
+
+        let lines: Vec<&str> = text.lines().collect();
+        for (i, line) in lines.iter().enumerate() {
+            Self::highlight_markdown_line_static(line, &mut job, font_id.clone(), editor_font_size);
+            if i < lines.len() - 1 {
+                job.append("\n", 0.0, egui::TextFormat {
+                    font_id: font_id.clone(),
+                    color: Color32::from_rgb(200, 200, 200),
+                    ..Default::default()
+                });
+            }
+        }
+
+        Self::apply_match_highlighting(&mut job, match_ranges, current_match);
+        job
+    }
+
     fn render_syntax_highlighted_editor(&mut self, ui: &mut egui::Ui) -> bool {
         use egui::TextEdit;
 
         let font_id = self.config.get_editor_font_id(self.config.editor_font_size);
         let editor_font_size = self.config.editor_font_size;
+
+        if self.cached_layout_job.is_none()
+            || self.cached_layout_text != self.markdown_text
+            || self.cached_layout_matches != self.match_ranges
+            || self.cached_layout_current_match != self.current_match
+        {
+            let job = Self::build_layout_job(&self.markdown_text, &self.match_ranges, self.current_match, &font_id, editor_font_size);
+            self.cached_layout_text = self.markdown_text.clone();
+            self.cached_layout_matches = self.match_ranges.clone();
+            self.cached_layout_current_match = self.current_match;
+            self.cached_layout_job = Some(job);
+        }
+
+        let cached_job = self.cached_layout_job.clone().unwrap();
+        let cached_text = self.cached_layout_text.clone();
         let match_ranges = self.match_ranges.clone();
         let current_match = self.current_match;
 
         let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
-            let mut job = egui::text::LayoutJob::default();
-
-            let lines: Vec<&str> = string.lines().collect();
-            for (i, line) in lines.iter().enumerate() {
-                Self::highlight_markdown_line_static(line, &mut job, font_id.clone(), editor_font_size);
-                if i < lines.len() - 1 {
-                    job.append("\n", 0.0, egui::TextFormat {
-                        font_id: font_id.clone(),
-                        color: Color32::from_rgb(200, 200, 200),
-                        ..Default::default()
-                    });
-                }
-            }
-
-            Self::apply_match_highlighting(&mut job, &match_ranges, current_match);
-
+            let job = if string == cached_text {
+                cached_job.clone()
+            } else {
+                Self::build_layout_job(string, &match_ranges, current_match, &font_id, editor_font_size)
+            };
             ui.fonts(|f| f.layout_job(job))
         };
 
@@ -372,74 +409,82 @@ impl Editor {
         match_ranges: &[(usize, usize)],
         current_match: Option<usize>
     ) {
-        for (match_idx, &(match_start, match_end)) in match_ranges.iter().enumerate() {
-            if match_start >= job.text.len() || match_end > job.text.len() || match_start >= match_end {
-                continue;
+        if match_ranges.is_empty() {
+            return;
+        }
+
+        let mut new_sections = Vec::with_capacity(job.sections.len() + match_ranges.len() * 2);
+        let mut byte_pos: usize = 0;
+        let mut match_idx = 0;
+
+        for section in job.sections.drain(..) {
+            let section_start = byte_pos;
+            let section_end = byte_pos + section.byte_range.len();
+            let text_offset = section.byte_range.start;
+
+            while match_idx < match_ranges.len() && match_ranges[match_idx].1 <= section_start {
+                match_idx += 1;
             }
 
-            let is_current = current_match == Some(match_idx);
-            let bg_color = if is_current {
-                Color32::from_rgb(255, 165, 0)
-            } else {
-                Color32::from_rgb(100, 100, 50)
-            };
+            let mut local_pos = section_start;
+            let mut local_match_idx = match_idx;
+            let mut first_piece = true;
 
-            let mut sections_to_add = Vec::new();
-            let mut byte_pos = 0;
-            let mut section_idx = 0;
-
-            while section_idx < job.sections.len() {
-                let section = &job.sections[section_idx];
-                let section_start = byte_pos;
-                let section_end = byte_pos + section.byte_range.len();
-
-                if section_start < match_end && section_end > match_start {
-                    let overlap_start = match_start.max(section_start);
-                    let overlap_end = match_end.min(section_end);
-
-                    if overlap_start == section_start && overlap_end == section_end {
-                        job.sections[section_idx].format.background = bg_color;
-                    } else {
-                        let section = job.sections.remove(section_idx);
-                        let text_offset = section.byte_range.start;
-
-                        if overlap_start > section_start {
-                            sections_to_add.push((section_idx, egui::text::LayoutSection {
-                                leading_space: section.leading_space,
-                                byte_range: text_offset..(text_offset + (overlap_start - section_start)),
-                                format: section.format.clone(),
-                            }));
-                        }
-
-                        let mut highlighted_format = section.format.clone();
-                        highlighted_format.background = bg_color;
-                        sections_to_add.push((section_idx, egui::text::LayoutSection {
-                            leading_space: if overlap_start > section_start { 0.0 } else { section.leading_space },
-                            byte_range: (text_offset + (overlap_start - section_start))..(text_offset + (overlap_end - section_start)),
-                            format: highlighted_format,
-                        }));
-
-                        if overlap_end < section_end {
-                            sections_to_add.push((section_idx, egui::text::LayoutSection {
-                                leading_space: 0.0,
-                                byte_range: (text_offset + (overlap_end - section_start))..section.byte_range.end,
-                                format: section.format,
-                            }));
-                        }
-
-                        for (idx, new_section) in sections_to_add.drain(..).rev() {
-                            job.sections.insert(idx, new_section);
-                        }
-
-                        byte_pos = section_end;
-                        continue;
-                    }
+            while local_pos < section_end && local_match_idx < match_ranges.len() {
+                let (match_start, match_end) = match_ranges[local_match_idx];
+                if match_start >= section_end {
+                    break;
                 }
 
-                byte_pos = section_end;
-                section_idx += 1;
+                let overlap_start = match_start.max(local_pos);
+                let overlap_end = match_end.min(section_end);
+
+                if overlap_start > local_pos {
+                    new_sections.push(egui::text::LayoutSection {
+                        leading_space: if first_piece { section.leading_space } else { 0.0 },
+                        byte_range: (text_offset + (local_pos - section_start))..(text_offset + (overlap_start - section_start)),
+                        format: section.format.clone(),
+                    });
+                    first_piece = false;
+                }
+
+                let is_current = current_match == Some(local_match_idx);
+                let bg_color = if is_current {
+                    Color32::from_rgb(255, 165, 0)
+                } else {
+                    Color32::from_rgb(100, 100, 50)
+                };
+                let mut highlighted_format = section.format.clone();
+                highlighted_format.background = bg_color;
+                new_sections.push(egui::text::LayoutSection {
+                    leading_space: if first_piece { section.leading_space } else { 0.0 },
+                    byte_range: (text_offset + (overlap_start - section_start))..(text_offset + (overlap_end - section_start)),
+                    format: highlighted_format,
+                });
+                first_piece = false;
+
+                local_pos = overlap_end;
+                if match_end <= section_end {
+                    local_match_idx += 1;
+                } else {
+                    break;
+                }
             }
+
+            if local_pos < section_end {
+                new_sections.push(egui::text::LayoutSection {
+                    leading_space: if first_piece { section.leading_space } else { 0.0 },
+                    byte_range: (text_offset + (local_pos - section_start))..section.byte_range.end,
+                    format: section.format,
+                });
+            } else if local_pos == section_start {
+                new_sections.push(section);
+            }
+
+            byte_pos = section_end;
         }
+
+        job.sections = new_sections;
     }
 
 }

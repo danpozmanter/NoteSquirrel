@@ -19,6 +19,7 @@ pub struct AppFrame {
     pub show_unsaved_dialog: bool,
     pub pending_close: bool,
     pub force_close: bool,
+    last_window_title: String,
 }
 
 impl AppFrame {
@@ -36,6 +37,7 @@ impl AppFrame {
             show_unsaved_dialog: false,
             pending_close: false,
             force_close: false,
+            last_window_title: String::new(),
         };
 
         app_frame.load_notes();
@@ -60,13 +62,16 @@ impl AppFrame {
         self.editor.load_notes(&self.notes_list);
     }
 
-    pub fn update_window_title(&self, ctx: &egui::Context) {
+    pub fn update_window_title(&mut self, ctx: &egui::Context) {
         let note_name = self.notes_list.get_current_note_name();
         let is_dirty = self.notes_list.is_current_note_dirty();
         let dirty_indicator = if is_dirty { "*" } else { "" };
         let title = format!("Note Squirrel - {}{}", note_name, dirty_indicator);
 
-        ctx.send_viewport_cmd(egui::ViewportCommand::Title(title));
+        if title != self.last_window_title {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
+            self.last_window_title = title;
+        }
     }
 
     pub fn save_config(&self) {

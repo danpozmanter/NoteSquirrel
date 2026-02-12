@@ -28,6 +28,8 @@ impl MarkdownContext {
 pub struct RenderedView {
     current_markdown_text: String,
     config: Config,
+    cached_events: Vec<Event<'static>>,
+    cached_events_text: String,
 }
 
 impl RenderedView {
@@ -35,6 +37,8 @@ impl RenderedView {
         Self {
             current_markdown_text: String::new(),
             config: config.clone(),
+            cached_events: Vec::new(),
+            cached_events_text: String::new(),
         }
     }
 
@@ -63,22 +67,30 @@ impl RenderedView {
         result
     }
 
-    fn render_markdown(&self, ui: &mut egui::Ui, markdown_text: &str) -> Vec<usize> {
-        let mut options = Options::empty();
-        options.insert(Options::ENABLE_STRIKETHROUGH);
-        options.insert(Options::ENABLE_TABLES);
-        options.insert(Options::ENABLE_FOOTNOTES);
-        options.insert(Options::ENABLE_TASKLISTS);
+    fn ensure_cached_events(&mut self, markdown_text: &str) {
+        if self.cached_events_text != markdown_text {
+            let mut options = Options::empty();
+            options.insert(Options::ENABLE_STRIKETHROUGH);
+            options.insert(Options::ENABLE_TABLES);
+            options.insert(Options::ENABLE_FOOTNOTES);
+            options.insert(Options::ENABLE_TASKLISTS);
 
-        let parser = Parser::new_ext(markdown_text, options);
-        let events: Vec<Event> = parser.collect();
+            let parser = Parser::new_ext(markdown_text, options);
+            self.cached_events = parser.map(|e| e.into_static()).collect();
+            self.cached_events_text = markdown_text.to_string();
+        }
+    }
 
+    fn render_markdown(&mut self, ui: &mut egui::Ui, markdown_text: &str) -> Vec<usize> {
+        self.ensure_cached_events(markdown_text);
+
+        let events = &self.cached_events;
         let mut context = MarkdownContext::new();
         let mut checkbox_toggles = Vec::new();
         let mut i = 0;
 
         while i < events.len() {
-            i = self.render_markdown_events(ui, &events, i, &mut context, &mut checkbox_toggles);
+            i = self.render_markdown_events(ui, events, i, &mut context, &mut checkbox_toggles);
         }
 
         checkbox_toggles
