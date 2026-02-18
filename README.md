@@ -23,7 +23,6 @@ A fast, local note-taking application built with Rust and egui. NoteSquirrel pro
 ## Keyboard Shortcuts
 
 ### File Operations
-- **Ctrl+S** / **Cmd+S**: Save current note
 - **Ctrl+N** / **Cmd+N**: Create new note
 - **Ctrl+C** / **Cmd+C**: Copy note content to clipboard (when not focused on editor)
 - **Ctrl+D** / **Cmd+D**: Delete current note (with confirmation)
@@ -41,12 +40,6 @@ A fast, local note-taking application built with Rust and egui. NoteSquirrel pro
 - **Alt+R**: Replace current match (when find dialog is open)
 - **Alt+A**: Replace all matches (when find dialog is open)
 - **Escape**: Close find dialog
-
-### Dialog Shortcuts
-- **Y/N**: Confirm/cancel delete in confirmation dialog
-- **Alt+E**: Exit without saving (unsaved changes dialog)
-- **Alt+C** / **Escape**: Cancel (unsaved changes dialog)
-- **Alt+S**: Save all notes (unsaved changes dialog)
 
 ### Other
 - **Double-click**: Rename note in the list
