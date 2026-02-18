@@ -1,6 +1,16 @@
 # Changelog
 
-All notable changes to NoteSquirrel will be documented in this file.
+## [0.2.0]
+
+### Added
+- Auto-save: notes save on every keystroke; no manual Ctrl+S needed
+- Sort order: A-Z or Recent toggle in the sidebar
+- Clickable links in the markdown preview open in the browser
+- Search bar now shows a magnifying glass icon
+- Word wrap in the editor
+
+### Removed
+- Unsaved changes dialog (no longer needed with auto-save)
 
 ## [0.1.1]
 

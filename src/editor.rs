@@ -271,12 +271,13 @@ impl Editor {
         let match_ranges = self.match_ranges.clone();
         let current_match = self.current_match;
 
-        let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
-            let job = if string == cached_text {
+        let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
+            let mut job = if string == cached_text {
                 cached_job.clone()
             } else {
                 Self::build_layout_job(string, &match_ranges, current_match, &font_id, editor_font_size)
             };
+            job.wrap.max_width = wrap_width;
             ui.fonts(|f| f.layout_job(job))
         };
 
@@ -284,7 +285,6 @@ impl Editor {
 
         let text_edit = TextEdit::multiline(&mut self.markdown_text)
             .font(font_id.clone())
-            .desired_width(f32::INFINITY)
             .lock_focus(true)
             .layouter(&mut layouter);
 

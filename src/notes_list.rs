@@ -3,6 +3,12 @@ use eframe::egui;
 use crate::file_manager::FileManager;
 use crate::config::Config;
 
+#[derive(PartialEq, Clone)]
+pub enum SortOrder {
+    Alphabetical,
+    LastModified,
+}
+
 pub struct NotesList {
     file_manager: FileManager,
     config: Config,
@@ -11,9 +17,9 @@ pub struct NotesList {
     search_text: String,
     editing_note_name: Option<usize>,
     temp_note_name: String,
-    original_content: Vec<String>,
     current_content: Vec<String>,
-    is_dirty: Vec<bool>,
+    sort_order: SortOrder,
+    display_order: Vec<usize>,
 }
 
 impl NotesList {
@@ -26,9 +32,9 @@ impl NotesList {
             search_text: String::new(),
             editing_note_name: None,
             temp_note_name: String::new(),
-            original_content: Vec::new(),
             current_content: Vec::new(),
-            is_dirty: Vec::new(),
+            sort_order: SortOrder::Alphabetical,
+            display_order: Vec::new(),
         }
     }
 
@@ -36,6 +42,7 @@ impl NotesList {
         self.notes_list = self.file_manager.load_note_names();
         self.initialize_content_vectors();
         self.load_all_content();
+        self.compute_display_order();
     }
 
     pub fn get_search_text_mut(&mut self) -> &mut String {
@@ -54,52 +61,14 @@ impl NotesList {
         }
     }
 
-    pub fn is_current_note_dirty(&self) -> bool {
-        self.is_dirty.get(self.current_note_index).copied().unwrap_or(false)
-    }
-
-    pub fn has_any_dirty_notes(&self) -> bool {
-        self.is_dirty.iter().any(|&dirty| dirty)
-    }
-
-    pub fn save_all_notes(&mut self) -> bool {
-        let mut all_saved = true;
-        for i in 0..self.notes_list.len() {
-            if self.is_dirty.get(i).copied().unwrap_or(false) {
-                let note_name = &self.notes_list[i].clone();
-                let content = &self.current_content[i].clone();
-                if self.file_manager.write_note_content(note_name, content) {
-                    self.original_content[i] = content.clone();
-                    self.is_dirty[i] = false;
-                } else {
-                    all_saved = false;
-                }
-            }
-        }
-        all_saved
-    }
-
-    pub fn save_current_note(&mut self, note_name: &str, content: &str) -> bool {
-        if self.file_manager.write_note_content(note_name, content) {
-            if self.current_note_index < self.original_content.len() {
-                self.original_content[self.current_note_index] = content.to_string();
-                self.current_content[self.current_note_index] = content.to_string();
-            }
-            true
-        } else {
-            false
-        }
-    }
-
     pub fn create_new_note(&mut self) -> Option<String> {
         let new_note_name = format!("Note {}", self.notes_list.len() + 1);
         if self.file_manager.create_note(&new_note_name) {
             self.notes_list.push(new_note_name.clone());
-            self.original_content.push(String::new());
             self.current_content.push(String::new());
-            self.is_dirty.push(false);
 
             self.current_note_index = self.notes_list.len() - 1;
+            self.compute_display_order();
             Some(new_note_name)
         } else {
             None
@@ -115,6 +84,7 @@ impl NotesList {
         if self.file_manager.delete_note(note_name) {
             self.remove_note_from_vectors(self.current_note_index);
             self.adjust_current_index_after_deletion();
+            self.compute_display_order();
             true
         } else {
             false
@@ -137,21 +107,18 @@ impl NotesList {
     pub fn save_current_content(&mut self, content: &str) {
         if self.current_note_index < self.current_content.len() {
             self.current_content[self.current_note_index] = content.to_string();
-            self.update_dirty_state();
+            let note_name = self.notes_list[self.current_note_index].clone();
+            self.file_manager.write_note_content(&note_name, content);
         }
     }
 
-    pub fn update_dirty_state(&mut self) {
-        if self.current_note_index < self.current_content.len() {
-            self.is_dirty[self.current_note_index] =
-                self.current_content[self.current_note_index] != self.original_content[self.current_note_index];
-        }
+    pub fn set_sort_order(&mut self, order: SortOrder) {
+        self.sort_order = order;
+        self.compute_display_order();
     }
 
-    pub fn mark_current_clean(&mut self) {
-        if self.current_note_index < self.is_dirty.len() {
-            self.is_dirty[self.current_note_index] = false;
-        }
+    pub fn get_sort_order(&self) -> &SortOrder {
+        &self.sort_order
     }
 
     pub fn render(&mut self, ui: &mut egui::Ui) -> Option<usize> {
@@ -160,7 +127,10 @@ impl NotesList {
         let mut finish_editing = false;
         let mut rename_action = None;
 
-        for (index, note_name) in self.notes_list.iter().enumerate() {
+        for display_pos in 0..self.display_order.len() {
+            let index = self.display_order[display_pos];
+            let note_name = self.notes_list[index].clone();
+
             if !self.search_text.is_empty()
                 && !note_name
                     .to_lowercase()
@@ -170,7 +140,6 @@ impl NotesList {
             }
 
             let is_selected = index == self.current_note_index;
-            let is_dirty = self.is_dirty.get(index).copied().unwrap_or(false);
 
             ui.horizontal(|ui| {
                 if self.editing_note_name == Some(index) {
@@ -192,17 +161,10 @@ impl NotesList {
 
                     response.request_focus();
                 } else {
-                    let button_label = if is_dirty {
-                        egui::RichText::new(note_name)
-                            .color(egui::Color32::from_rgb(255, 150, 150))
-                            .font(self.config.get_list_font_id(self.config.list_font_size))
-                            .strong()
-                    } else {
-                        egui::RichText::new(note_name)
-                            .color(egui::Color32::WHITE)
-                            .font(self.config.get_list_font_id(self.config.list_font_size))
-                            .strong()
-                    };
+                    let button_label = egui::RichText::new(note_name.as_str())
+                        .color(egui::Color32::WHITE)
+                        .font(self.config.get_list_font_id(self.config.list_font_size))
+                        .strong();
 
                     let button = if is_selected {
                         let button = egui::Button::new(button_label)
@@ -238,31 +200,23 @@ impl NotesList {
     }
 
     fn initialize_content_vectors(&mut self) {
-        self.original_content.clear();
         self.current_content.clear();
-        self.is_dirty.clear();
 
         for _ in &self.notes_list {
-            self.original_content.push(String::new());
             self.current_content.push(String::new());
-            self.is_dirty.push(false);
         }
     }
 
     fn load_all_content(&mut self) {
         for (i, note_name) in self.notes_list.iter().enumerate() {
             let content = self.file_manager.read_note_content(note_name);
-            self.original_content[i] = content.clone();
             self.current_content[i] = content;
-            self.is_dirty[i] = false;
         }
     }
 
     fn remove_note_from_vectors(&mut self, index: usize) {
         self.notes_list.remove(index);
-        self.original_content.remove(index);
         self.current_content.remove(index);
-        self.is_dirty.remove(index);
     }
 
     fn adjust_current_index_after_deletion(&mut self) {
@@ -276,5 +230,29 @@ impl NotesList {
             && let Some(index) = self.notes_list.iter().position(|name| name == old_name) {
                 self.notes_list[index] = new_name.to_string();
             }
+    }
+
+    fn compute_display_order(&mut self) {
+        let mut indices: Vec<usize> = (0..self.notes_list.len()).collect();
+
+        match self.sort_order {
+            SortOrder::Alphabetical => {
+                let notes_list = &self.notes_list;
+                indices.sort_by(|&a, &b| {
+                    notes_list[a].to_lowercase().cmp(&notes_list[b].to_lowercase())
+                });
+            }
+            SortOrder::LastModified => {
+                let notes_list = &self.notes_list;
+                let file_manager = &self.file_manager;
+                indices.sort_by(|&a, &b| {
+                    let time_a = file_manager.get_note_modified_time(&notes_list[a]);
+                    let time_b = file_manager.get_note_modified_time(&notes_list[b]);
+                    time_b.cmp(&time_a)
+                });
+            }
+        }
+
+        self.display_order = indices;
     }
 }

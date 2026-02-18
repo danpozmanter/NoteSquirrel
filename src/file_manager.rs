@@ -68,4 +68,9 @@ impl FileManager {
         let new_path = self.notes_dir.join(format!("{}.md", new_name));
         fs::rename(&old_path, &new_path).is_ok()
     }
+
+    pub fn get_note_modified_time(&self, note_name: &str) -> Option<std::time::SystemTime> {
+        let file_path = self.notes_dir.join(format!("{}.md", note_name));
+        fs::metadata(file_path).and_then(|m| m.modified()).ok()
+    }
 }
