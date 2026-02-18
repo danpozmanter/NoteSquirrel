@@ -75,6 +75,28 @@ The configuration file will be created automatically with default values on firs
 
 ## Installation
 
+### Pre-built Binaries
+
+Download the latest release for your platform from the [releases page](https://github.com/danpozmanter/NoteSquirrel/releases).
+
+You may need to make the binary executable before running it (Linux and macOS):
+
+```
+chmod u+x NoteSquirrel
+```
+
+#### macOS Note
+
+macOS may block or delete the binary because it is not signed with an Apple Developer certificate. To allow it to run:
+
+```
+xattr -dr com.apple.quarantine NoteSquirrel
+```
+
+Then right-click the binary and select **Open**, or run it from the terminal.
+
+### Build from Source
+
 1. Clone the repository
 2. Install Rust if not already installed
 3. Run `cargo build --release`

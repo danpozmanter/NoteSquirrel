@@ -77,11 +77,43 @@ jobs:
       - name: Build
         run: cargo build --release --target x86_64-apple-darwin
 
+      - name: Create .app bundle
+        run: |
+          mkdir -p NoteSquirrel.app/Contents/MacOS
+          mkdir -p NoteSquirrel.app/Contents/Resources
+          cp target/x86_64-apple-darwin/release/NoteSquirrel NoteSquirrel.app/Contents/MacOS/
+          cp "$(find target/x86_64-apple-darwin/release/build -name 'icon.icns' | head -1)" NoteSquirrel.app/Contents/Resources/AppIcon.icns
+          cat > NoteSquirrel.app/Contents/Info.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleName</key>
+              <string>NoteSquirrel</string>
+              <key>CFBundleDisplayName</key>
+              <string>NoteSquirrel</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.notesquirrel.app</string>
+              <key>CFBundleVersion</key>
+              <string>1.0</string>
+              <key>CFBundleExecutable</key>
+              <string>NoteSquirrel</string>
+              <key>CFBundleIconFile</key>
+              <string>AppIcon</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+          </dict>
+          </plist>
+          PLIST
+          zip -r NoteSquirrel-macos-x86_64.zip NoteSquirrel.app
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: NoteSquirrel-macos-x86_64
-          path: target/x86_64-apple-darwin/release/NoteSquirrel
+          path: NoteSquirrel-macos-x86_64.zip
 
   build-macos-arm:
     name: macOS Apple Silicon (aarch64)
@@ -98,11 +130,43 @@ jobs:
       - name: Build
         run: cargo build --release --target aarch64-apple-darwin
 
+      - name: Create .app bundle
+        run: |
+          mkdir -p NoteSquirrel.app/Contents/MacOS
+          mkdir -p NoteSquirrel.app/Contents/Resources
+          cp target/aarch64-apple-darwin/release/NoteSquirrel NoteSquirrel.app/Contents/MacOS/
+          cp "$(find target/aarch64-apple-darwin/release/build -name 'icon.icns' | head -1)" NoteSquirrel.app/Contents/Resources/AppIcon.icns
+          cat > NoteSquirrel.app/Contents/Info.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleName</key>
+              <string>NoteSquirrel</string>
+              <key>CFBundleDisplayName</key>
+              <string>NoteSquirrel</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.notesquirrel.app</string>
+              <key>CFBundleVersion</key>
+              <string>1.0</string>
+              <key>CFBundleExecutable</key>
+              <string>NoteSquirrel</string>
+              <key>CFBundleIconFile</key>
+              <string>AppIcon</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+          </dict>
+          </plist>
+          PLIST
+          zip -r NoteSquirrel-macos-aarch64.zip NoteSquirrel.app
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: NoteSquirrel-macos-aarch64
-          path: target/aarch64-apple-darwin/release/NoteSquirrel
+          path: NoteSquirrel-macos-aarch64.zip
 
   release:
     name: Create Release
@@ -118,10 +182,10 @@ jobs:
 
       - name: Package binaries
         run: |
-          cd artifacts/NoteSquirrel-linux-x86_64  && tar -czf ../NoteSquirrel-linux-x86_64.tar.gz NoteSquirrel && cd ../..
-          cd artifacts/NoteSquirrel-macos-x86_64  && tar -czf ../NoteSquirrel-macos-x86_64.tar.gz NoteSquirrel && cd ../..
-          cd artifacts/NoteSquirrel-macos-aarch64 && tar -czf ../NoteSquirrel-macos-aarch64.tar.gz NoteSquirrel && cd ../..
+          cd artifacts/NoteSquirrel-linux-x86_64 && tar -czf ../NoteSquirrel-linux-x86_64.tar.gz NoteSquirrel && cd ../..
           cd artifacts/NoteSquirrel-windows-x86_64 && zip ../NoteSquirrel-windows-x86_64.zip NoteSquirrel.exe && cd ../..
+          mv artifacts/NoteSquirrel-macos-x86_64/NoteSquirrel-macos-x86_64.zip artifacts/
+          mv artifacts/NoteSquirrel-macos-aarch64/NoteSquirrel-macos-aarch64.zip artifacts/
 
       - uses: softprops/action-gh-release@v2
         with:
