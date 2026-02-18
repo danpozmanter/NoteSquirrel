@@ -2,7 +2,12 @@
 
 All notable changes to NoteSquirrel will be documented in this file.
 
-## [0.1.0] - 2025-10-22
+## [0.1.1]
+
+### Fixed
+- CPU usage and stability improvements
+
+## [0.1.0]
 
 ### Added
 - **Find and Replace**: Find/replace dialog with Ctrl+F
