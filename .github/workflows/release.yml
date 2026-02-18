@@ -116,6 +116,13 @@ jobs:
         with:
           path: artifacts/
 
+      - name: Package binaries
+        run: |
+          cd artifacts/NoteSquirrel-linux-x86_64  && tar -czf ../NoteSquirrel-linux-x86_64.tar.gz NoteSquirrel && cd ../..
+          cd artifacts/NoteSquirrel-macos-x86_64  && tar -czf ../NoteSquirrel-macos-x86_64.tar.gz NoteSquirrel && cd ../..
+          cd artifacts/NoteSquirrel-macos-aarch64 && tar -czf ../NoteSquirrel-macos-aarch64.tar.gz NoteSquirrel && cd ../..
+          cd artifacts/NoteSquirrel-windows-x86_64 && zip ../NoteSquirrel-windows-x86_64.zip NoteSquirrel.exe && cd ../..
+
       - uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*
+          files: artifacts/*.tar.gz artifacts/*.zip
