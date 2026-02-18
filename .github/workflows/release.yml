@@ -125,4 +125,6 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*.tar.gz artifacts/*.zip
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.zip
