@@ -189,6 +189,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           files: |
             artifacts/*.tar.gz
             artifacts/*.zip
