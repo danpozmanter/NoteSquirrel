@@ -244,6 +244,14 @@ impl Editor {
             }
         }
 
+        if text.ends_with('\n') {
+            job.append("\n", 0.0, egui::TextFormat {
+                font_id: font_id.clone(),
+                color: Color32::from_rgb(200, 200, 200),
+                ..Default::default()
+            });
+        }
+
         Self::apply_match_highlighting(&mut job, match_ranges, current_match);
         job
     }
