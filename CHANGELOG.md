@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.2.1]
+- <ENTER> bugfix
+
 ## [0.2.0]
 
 ### Added
