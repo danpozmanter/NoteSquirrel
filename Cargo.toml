@@ -1,6 +1,6 @@
 [package]
 name = "NoteSquirrel"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2024"
 build = "build.rs"
 
@@ -16,6 +16,13 @@ image = "0.25"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
 regex = "1.10"
+
+# Force windows 0.62.0 on Windows: wgpu-hal requires ^0.62 and gpu-allocator
+# requires <=0.62 (meaning <=0.62.0). The only version satisfying both is 0.62.0,
+# so we pin it here to prevent Cargo from picking 0.62.1+ for wgpu-hal while
+# gpu-allocator resolves to 0.58.x, causing incompatible type errors on dx12.
+[target.'cfg(windows)'.dependencies]
+windows = "=0.62.0"
 
 [build-dependencies]
 image = "0.25"
