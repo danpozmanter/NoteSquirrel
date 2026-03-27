@@ -279,14 +279,15 @@ impl Editor {
         let match_ranges = self.match_ranges.clone();
         let current_match = self.current_match;
 
-        let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-            let mut job = if string == cached_text {
+        let mut layouter = |ui: &egui::Ui, string: &dyn egui::TextBuffer, wrap_width: f32| {
+            let s = string.as_str();
+            let mut job = if s == cached_text {
                 cached_job.clone()
             } else {
-                Self::build_layout_job(string, &match_ranges, current_match, &font_id, editor_font_size)
+                Self::build_layout_job(s, &match_ranges, current_match, &font_id, editor_font_size)
             };
             job.wrap.max_width = wrap_width;
-            ui.fonts(|f| f.layout_job(job))
+            ui.painter().layout_job(job)
         };
 
         let previous_text = self.markdown_text.clone();

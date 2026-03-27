@@ -132,7 +132,7 @@ impl Config {
             if let Ok(font_data) = fs::read(&path) {
                 fonts.font_data.insert(
                     family_key.to_owned(),
-                    FontData::from_owned(font_data)
+                    FontData::from_owned(font_data).into()
                 );
                 fonts.families.insert(
                     FontFamily::Name(family_key.into()),

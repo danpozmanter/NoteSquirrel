@@ -246,10 +246,10 @@ impl AppFrame {
         self.editor.set_match_ranges(ranges, current);
     }
 
-    pub fn render_main_layout(&mut self, ctx: &egui::Context) {
-        egui::SidePanel::left("sidebar_panel")
-            .exact_width(200.0)
-            .show(ctx, |ui| {
+    pub fn render_main_layout(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::left("sidebar_panel")
+            .exact_size(200.0)
+            .show_inside(ui, |ui| {
                 ui.horizontal(|ui| {
                     let is_alpha = self.notes_list.get_sort_order() == &SortOrder::Alphabetical;
                     let is_recent = self.notes_list.get_sort_order() == &SortOrder::LastModified;
@@ -288,11 +288,11 @@ impl AppFrame {
                 });
             });
 
-        self.render_editor_and_preview(ctx);
+        self.render_editor_and_preview(ui);
     }
 
-    fn render_editor_and_preview(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn render_editor_and_preview(&mut self, ui: &mut egui::Ui) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.columns(2, |columns| {
                 columns[0].vertical(|ui| {
                     let inner = ui.available_size();
@@ -349,17 +349,19 @@ impl Default for AppFrame {
 }
 
 impl eframe::App for AppFrame {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
+
         if ctx.input(|i| i.viewport().close_requested()) {
             self.config.last_open_note = Some(self.notes_list.get_current_note_name().to_string());
             self.save_config();
         }
 
-        self.update_window_title(ctx);
-        self.handle_global_shortcuts(ctx);
-        self.render_delete_confirmation_dialog(ctx);
-        self.render_error_dialog(ctx);
-        self.handle_find_replace(ctx);
-        self.render_main_layout(ctx);
+        self.update_window_title(&ctx);
+        self.handle_global_shortcuts(&ctx);
+        self.render_delete_confirmation_dialog(&ctx);
+        self.render_error_dialog(&ctx);
+        self.handle_find_replace(&ctx);
+        self.render_main_layout(ui);
     }
 }
